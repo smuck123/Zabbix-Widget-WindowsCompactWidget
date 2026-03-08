@@ -1,6 +1,8 @@
 # WindowsCompactWidget
 
-A compact Zabbix dashboard widget module for Windows hosts.
+A compact Zabbix dashboard widget module for Windows hosts. It use official Zabbix Templates and make it easy to show values from Windows hosts. 
+<img width="2082" height="709" alt="image" src="https://github.com/user-attachments/assets/241fb344-4087-45e0-bbef-940b59881816" />
+
 
 ## Features
 
