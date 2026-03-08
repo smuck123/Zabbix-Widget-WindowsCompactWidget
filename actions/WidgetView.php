@@ -131,6 +131,7 @@ class WidgetView extends CControllerDashboardWidgetView {
                         'display' => $cpu_item ? $this->formatPercent0($cpu_item['lastvalue']) : 'N/A',
                         'value' => $cpu_value,
                         'key' => $cpu_item['key_'] ?? '',
+                        'itemid' => $cpu_item['itemid'] ?? null,
                         'severity' => $this->percentSeverity($cpu_value),
                         'has_more' => $cpu_item ? 1 : 0,
                         'history' => []
@@ -153,6 +154,7 @@ class WidgetView extends CControllerDashboardWidgetView {
                         'display' => $mem_item ? $this->formatPercent0($mem_item['lastvalue']) : 'N/A',
                         'value' => $mem_value,
                         'key' => $mem_item['key_'] ?? '',
+                        'itemid' => $mem_item['itemid'] ?? null,
                         'severity' => $this->percentSeverity($mem_value),
                         'has_more' => $mem_item ? 1 : 0,
                         'history' => []
@@ -172,6 +174,7 @@ class WidgetView extends CControllerDashboardWidgetView {
                     $row['sessions'] = [
                         'display' => $sessions_item ? $this->formatNumber0($sessions_item['lastvalue']) : 'N/A',
                         'key' => $sessions_item['key_'] ?? '',
+                        'itemid' => $sessions_item['itemid'] ?? null,
                         'history' => []
                     ];
 
@@ -206,7 +209,7 @@ class WidgetView extends CControllerDashboardWidgetView {
                     $row['disks'] = [
                         'display' => $this->buildDisksSummary($disks),
                         'severity' => $this->highestDiskSeverity($disks),
-                        'details' => $this->buildDiskDetails($host_items, $disks, (bool) $show_disk_perf)
+                        'details' => $this->buildDiskDetails($host_items, $disks, (bool) $show_disk_perf, $history_targets)
                     ];
                 }
 
@@ -243,44 +246,31 @@ class WidgetView extends CControllerDashboardWidgetView {
 
         foreach ($rows as &$row) {
             foreach (['cpu', 'memory', 'sessions'] as $field) {
-                if (!isset($row[$field]['key']) || !isset($row[$field])) {
-                    continue;
-                }
-
-                foreach ($history_targets as $target) {
-                    if ($target['field'] !== $field) {
-                        continue;
-                    }
-                }
-            }
-        }
-        unset($row);
-
-        // attach history by matching item key from host rows
-        foreach ($rows as &$row) {
-            foreach (['cpu', 'memory', 'sessions'] as $field) {
                 if (!isset($row[$field])) {
                     continue;
                 }
 
-                $matched_itemid = null;
-                foreach ($history_targets as $target) {
-                    if ($target['field'] !== $field) {
+                $itemid = $row[$field]['itemid'] ?? null;
+                if ($itemid !== null && isset($history_map[$itemid])) {
+                    $row[$field]['history'] = $history_map[$itemid];
+                }
+            }
+
+            if (isset($row['disks']['details']) && is_array($row['disks']['details'])) {
+                foreach ($row['disks']['details'] as &$disk_detail) {
+                    if (!isset($disk_detail['perf']) || !is_array($disk_detail['perf'])) {
                         continue;
                     }
 
-                    if (
-                        isset($row[$field]['key']) &&
-                        $row[$field]['key'] !== '' &&
-                        isset($history_map[$target['itemid']])
-                    ) {
-                        $matched_itemid = $target['itemid'];
-                        if (!empty($history_map[$matched_itemid])) {
-                            $row[$field]['history'] = $history_map[$matched_itemid];
-                            break;
+                    foreach ($disk_detail['perf'] as &$perf) {
+                        $perf_itemid = $perf['itemid'] ?? null;
+                        if ($perf_itemid !== null && isset($history_map[$perf_itemid])) {
+                            $perf['history'] = $history_map[$perf_itemid];
                         }
                     }
+                    unset($perf);
                 }
+                unset($disk_detail);
             }
         }
         unset($row);
@@ -673,7 +663,7 @@ class WidgetView extends CControllerDashboardWidgetView {
         return $highest;
     }
 
-    private function buildDiskDetails(array $items, array $disks, bool $show_disk_perf): array {
+    private function buildDiskDetails(array $items, array $disks, bool $show_disk_perf, array &$history_targets): array {
         $details = [];
 
         foreach ($disks as $disk) {
@@ -726,9 +716,19 @@ class WidgetView extends CControllerDashboardWidgetView {
                     }
 
                     $entry['perf'][] = [
+                        'itemid' => $item['itemid'] ?? null,
                         'name' => $short_name,
-                        'value' => $this->formatCompactValue($value, $units)
+                        'value' => $this->formatCompactValue($value, $units),
+                        'history' => []
                     ];
+
+                    if (!empty($item['itemid'])) {
+                        $history_targets['disk_perf:' . $item['itemid']] = [
+                            'itemid' => $item['itemid'],
+                            'value_type' => (int) ($item['value_type'] ?? 3),
+                            'field' => 'disk_perf'
+                        ];
+                    }
                 }
             }
 
