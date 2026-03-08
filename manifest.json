@@ -1,0 +1,19 @@
+{
+    "manifest_version": 2.0,
+    "id": "windowscompactwidget",
+    "type": "widget",
+    "name": "WindowsCompactWidget",
+    "namespace": "WindowsCompactWidget",
+    "version": "1.0",
+    "author": "Janne Kivelä",
+    "description": "Compact Windows servers widget showing selected values from selected groups or hosts.",
+    "widget": {
+        "form_class": "WidgetForm",
+        "refresh_rate": 60
+    },
+    "actions": {
+        "widget.windowscompactwidget.view": {
+            "class": "WidgetView"
+        }
+    }
+}
